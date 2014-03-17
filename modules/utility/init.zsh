@@ -23,16 +23,16 @@ fi
 alias ack='nocorrect ack'
 alias cd='nocorrect cd'
 alias cp='nocorrect cp'
-alias ebuild='nocorrect ebuild'
+# alias ebuild='nocorrect ebuild'
 alias gcc='nocorrect gcc'
-alias gist='nocorrect gist'
+# alias gist='nocorrect gist'
 alias grep='nocorrect grep'
-alias heroku='nocorrect heroku'
+# alias heroku='nocorrect heroku'
 alias ln='nocorrect ln'
 alias man='nocorrect man'
 alias mkdir='nocorrect mkdir'
 alias mv='nocorrect mv'
-alias mysql='nocorrect mysql'
+# alias mysql='nocorrect mysql'
 alias rm='nocorrect rm'
 
 # Disable globbing.
@@ -53,7 +53,6 @@ alias b='${(z)BROWSER}'
 
 alias diffu="diff --unified"
 alias e='${(z)VISUAL:-${(z)EDITOR}}'
-alias mkdir="${aliases[mkdir]:-mkdir} -p"
 alias p='${(z)PAGER}'
 alias po='popd'
 alias pu='pushd'
@@ -72,7 +71,14 @@ if zstyle -T ':prezto:module:utility' safe-ops; then
   alias ln='lni'
 fi
 
+alias tmux='tmux -2u'
+
 # ls
+ls_command='ls'
+# if is-callable 'ls++'; then
+#   alias ls='ls++'
+#   eval $( dircolors -b $HOME/projects/LS_COLORS/LS_COLORS )
+# elif is-callable 'dircolors'; then
 if is-callable 'dircolors'; then
   # GNU Core Utilities
 
@@ -214,7 +220,11 @@ function slit {
 
 # Finds files and executes a command on them.
 function find-exec {
-  find . -type f -iname "*${1:-}*" -exec "${2:-file}" '{}' \;
+  find . -type f -iname "*${1:-}*" -exec "${2:-file}" "${@[3, -1]}" '{}' \;
+}
+
+function fing {
+  find . -type f -iname "*${1:-}*" -exec grep -n "${@[2, -1]}" /dev/null '{}' \;
 }
 
 # Displays user owned processes status.
@@ -244,4 +254,22 @@ function noremoteglob {
     (  *  ) argo+=( ${~arg} ) ;; # default, glob
   esac; done
   command $cmd "${(@)argo}"
+}
+
+function cur_track {
+if [[ $(uname) == "Linux" ]]; then
+    metadata=$(dbus-send --reply-timeout=42 --print-reply --dest=org.mpris.MediaPlayer2.spotify / org.freedesktop.MediaPlayer2.GetMetadata 2>/dev/null)
+    if [ "$?" -eq 0 ] && [ -n "$metadata" ]; then
+      # TODO how do one express this with dbus-send? It works with qdbus but the problem is that it's probably not as common as dbus-send.
+      state=$(qdbus org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get org.mpris.MediaPlayer2.Player PlaybackStatus)
+      if [[ $state == "Playing" ]]; then
+        artist=$(echo "$metadata" | grep -PA2 "string\s\"xesam:artist\"" | tail -1 | grep -Po "(?<=\").*(?=\")")
+        track=$(echo "$metadata" | grep -PA1 "string\s\"xesam:title\"" | tail -1 | grep -Po "(?<=\").*(?=\")")
+        np=$(echo "${artist} - ${track}")
+      fi
+    fi
+  elif shell_is_osx; then
+    np=$(${TMUX_POWERLINE_DIR_SEGMENTS}/np_spotify_mac.script)
+  fi
+  echo "$np"
 }

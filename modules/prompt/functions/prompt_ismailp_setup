@@ -1,0 +1,120 @@
+#
+# A simple theme that displays relevant, contextual information.
+#
+# Authors:
+#   Sorin Ionescu <sorin.ionescu@gmail.com>
+#
+# Screenshots:
+#   http://i.imgur.com/nBEEZ.png
+#
+# Customized formyself; Ismail Pazarbasi
+# Load dependencies.
+pmodload 'helper'
+
+function prompt_ismailp_pwd {
+  local pwd="${PWD/#$HOME/~}"
+
+  if [[ "$pwd" == (#m)[/~] ]]; then
+    _prompt_ismailp_pwd="$MATCH"
+    unset MATCH
+  else
+    _prompt_ismailp_pwd="%n@%m %~ %# "
+  fi
+}
+
+function prompt_ismailp_git_info {
+  if (( _prompt_ismailp_precmd_async_pid > 0 )); then
+    # Append Git status.
+    if [[ -s "$_prompt_ismailp_precmd_async_data" ]]; then
+      alias typeset='typeset -g'
+      source "$_prompt_ismailp_precmd_async_data"
+      RPROMPT+='${git_info:+${(e)git_info[status]}}'
+      unalias typeset
+    fi
+
+    # Reset PID.
+    _prompt_ismailp_precmd_async_pid=0
+
+    # Redisplay prompt.
+    zle && zle reset-prompt
+  fi
+}
+
+function prompt_ismailp_precmd_async {
+  # Get Git repository information.
+  if (( $+functions[git-info] )); then
+    git-info
+    typeset -p git_info >! "$_prompt_ismailp_precmd_async_data"
+  fi
+
+  # Signal completion to parent process.
+  kill -WINCH $$
+}
+
+function prompt_ismailp_precmd {
+  setopt LOCAL_OPTIONS
+  unsetopt XTRACE KSH_ARRAYS
+
+  # Format PWD.
+  prompt_ismailp_pwd
+
+  # Kill the old process of slow commands if it is still running.
+  if (( _prompt_ismailp_precmd_async_pid > 0 )); then
+    kill -KILL "$_prompt_ismailp_precmd_async_pid" &>/dev/null
+  fi
+
+  # Compute slow commands in the background.
+  trap prompt_ismailp_git_info WINCH
+  prompt_ismailp_precmd_async &!
+  _prompt_ismailp_precmd_async_pid=$!
+}
+
+function prompt_ismailp_setup {
+  setopt LOCAL_OPTIONS
+  unsetopt XTRACE KSH_ARRAYS
+  prompt_opts=(cr percent subst)
+  _prompt_ismailp_precmd_async_pid=0
+  _prompt_ismailp_precmd_async_data="${TMPPREFIX}-prompt_ismailp_data"
+
+  # Load required functions.
+  autoload -Uz add-zsh-hook
+
+  # Add hook for calling git-info before each command.
+  add-zsh-hook precmd prompt_ismailp_precmd
+
+  # Set editor-info parameters.
+  zstyle ':prezto:module:editor:info:completing' format '%B%F{red}...%f%b'
+  zstyle ':prezto:module:editor:info:keymap:primary' format ''
+  # zstyle ':prezto:module:editor:info:keymap:primary' format ''
+  zstyle ':prezto:module:editor:info:keymap:primary:overwrite' format ' %F{red}♺%f'
+  zstyle ':prezto:module:editor:info:keymap:alternate' format ' %K{cyan}%F{black}N%f%k'
+  zstyle ':prezto:module:syntax-highlighting' styles \
+    'builtin' 'bg=white' \
+    'command' 'bg=white'
+  # Set git-info parameters.
+  # zstyle ':prezto:module:git:info' verbose 'yes'
+  zstyle ':prezto:module:git:info:action' format ':%%B%F{yellow}%s%f%%b'
+  zstyle ':prezto:module:git:info:added' format ' %%B%F{green}✚%f%%b'
+  zstyle ':prezto:module:git:info:ahead' format ' %%B%F{yellow}⬆%f%%b'
+  zstyle ':prezto:module:git:info:behind' format ' %%B%F{yellow}⬇%f%%b'
+  zstyle ':prezto:module:git:info:branch' format ':%F{green}%b%f'
+  zstyle ':prezto:module:git:info:commit' format ':%F{green}%.7c%f'
+  zstyle ':prezto:module:git:info:deleted' format ' %%B%F{red}✖%f%%b'
+  zstyle ':prezto:module:git:info:modified' format ' %%B%F{blue}✱%f%%b'
+  zstyle ':prezto:module:git:info:position' format ':%F{red}%p%f'
+  zstyle ':prezto:module:git:info:renamed' format ' %%B%F{magenta}➜%f%%b'
+  zstyle ':prezto:module:git:info:stashed' format ' %%B%F{cyan}✭%f%%b'
+  zstyle ':prezto:module:git:info:unmerged' format ' %%B%F{yellow}═%f%%b'
+  zstyle ':prezto:module:git:info:untracked' format ' %%B%F{white}◼%f%%b'
+  zstyle ':prezto:module:git:info:keys' format \
+     'prompt' ' %F{white}git%f$(coalesce "%b" "%p" "%c")%s' \
+     'rprompt' '%A%B%S%a%d%m%r%U%u'
+
+  # Define prompts.
+  PROMPT='%n %~ %#${editor_info[keymap]} '
+  RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f)${VIM:+" %B%F{green}V%f%b"}${git_info:+${(e)git_info[prompt]}}${git_info[rprompt]}'
+  SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
+}
+
+prompt_ismailp_setup "$@"
+

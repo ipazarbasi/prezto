@@ -44,6 +44,6 @@ fi
 #
 # Aliases
 #
-
+alias tmux="tmux -2u"
 alias tmuxa="tmux $_tmux_iterm_integration new-session -A"
 alias tmuxl='tmux list-sessions'

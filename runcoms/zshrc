@@ -11,3 +11,38 @@ if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
 fi
 
 # Customize to your needs...
+ctrl-o() {
+    emulate -LR zsh
+    local keystr
+    read -k keystr
+    local -r keystr
+    local -ri key=$(( #keystr ))
+    zle ${${(z)$(bindkey -M vicmd $keystr)}[2]}
+}
+
+bindkey -M vicmd '?' history-incremental-search-backward
+zle -N ctrl-o
+bindkey -M viins '^o' ctrl-o
+
+prompt ismailp
+unsetopt AUTO_CD
+unsetopt share_history
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+alias bz=$BZIP_BIN
+
+tarb() {
+  tar -cf "$1".tar.bz2 --use-compress-prog=$BZIP_BIN "$1"
+}
+
+untarbzip() {
+  $BZIP_BIN -dc "$1" | tar x --exclude="._*"
+}
+
+targ() {
+  tar -czf "$1".tar.gz "$1"
+}
+
+alias untar="tar -xf"
+alias buntar=untarbzip

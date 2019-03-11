@@ -17,8 +17,8 @@ fi
 # Editors
 #
 
-export EDITOR='nano'
-export VISUAL='nano'
+export EDITOR='vim'
+export VISUAL='vim'
 export PAGER='less'
 
 #
@@ -26,7 +26,11 @@ export PAGER='less'
 #
 
 if [[ -z "$LANG" ]]; then
-  export LANG='en_US.UTF8'
+  if [[ "$OSTYPE" == darwin* ]]; then
+    export LANG='en_US.UTF-8'
+  else
+    export LANG='en_US.UTF8'
+  fi
 fi
 
 #
@@ -43,7 +47,9 @@ typeset -gU cdpath fpath mailpath path
 
 # Set the list of directories that Zsh searches for programs.
 path=(
+  /opt/local/bin
   /usr/local/{bin,sbin}
+  /usr/local/go/bin
   $path
 )
 
@@ -75,4 +81,10 @@ fi
 # if [[ ! -d "$TMPPREFIX" ]]; then
 #   mkdir -p "$TMPPREFIX"
 # fi
-#
+
+# Check to see if pbzip2 is already on path; if so, set BZIP_BIN appropriately
+command -v pbzip2 &>/dev/null && export BZIP_BIN="pbzip2"
+# Otherwise, default to standard bzip2 binary
+if [ -z $BZIP_BIN ]; then
+  export BZIP_BIN="bzip2"
+fi

@@ -206,7 +206,8 @@ if ! zstyle -t ':prezto:module:git:alias' skip 'yes'; then
   alias gpF='git push --force'
   alias gpa='git push --all'
   alias gpA='git push --all && git push --tags'
-  alias gpt='git push --tags'
+  # This might conflict with GPT utility
+  # alias gpt='git push --tags'
   alias gpc='git push --set-upstream origin "$(git-branch-current 2> /dev/null)"'
   alias gpp='git pull --rebase origin "$(git-branch-current 2> /dev/null)" && git push origin "$(git-branch-current 2> /dev/null)"'
 
@@ -216,6 +217,7 @@ if ! zstyle -t ':prezto:module:git:alias' skip 'yes'; then
   alias grc='git rebase --continue'
   alias gri='git rebase --interactive'
   alias grs='git rebase --skip'
+  alias grom='git rebase origin/master'
 
   # Remote (R)
   alias gR='git remote'

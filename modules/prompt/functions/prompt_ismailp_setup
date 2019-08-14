@@ -111,7 +111,7 @@ function prompt_ismailp_setup {
      'rprompt' '%A%B%S%a%d%m%r%U%u'
 
   # Define prompts.
-  PROMPT='%n@%m %~ %#${editor_info[keymap]} '
+  PROMPT='%F{72}%n%f%b%F{242}@%f%b%F{179}%m%f%b %F{202}%~%f%b %#${editor_info[keymap]} '
   RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f)${VIM:+" %B%F{green}V%f%b"}${git_info:+${(e)git_info[prompt]}}${git_info[rprompt]}'
   SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
 }

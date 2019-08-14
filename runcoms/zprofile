@@ -50,6 +50,7 @@ path=(
   /opt/local/bin
   /usr/local/{bin,sbin}
   /usr/local/go/bin
+  $HOME/bin
   $path
 )
 

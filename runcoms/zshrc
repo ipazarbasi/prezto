@@ -24,7 +24,6 @@ bindkey -M vicmd '?' history-incremental-search-backward
 zle -N ctrl-o
 bindkey -M viins '^o' ctrl-o
 
-prompt ismailp
 unsetopt AUTO_CD
 unsetopt share_history
 

@@ -74,7 +74,7 @@ function prompt_ismailp_precmd {
   unsetopt XTRACE KSH_ARRAYS
 
   # Format PWD.
-  _prompt_ismailp_pwd=$(prompt-pwd)
+  # prompt_ismailp_pwd=$(prompt-pwd)
 
   # Handle updating git data. We also clear the git prompt data if we're in a
   # different git root now.
@@ -120,22 +120,23 @@ function prompt_ismailp_setup {
     'command' 'bg=white'
   # Set git-info parameters.
   # zstyle ':prezto:module:git:info' verbose 'yes'
-  zstyle ':prezto:module:git:info:action' format ':%%B%F{yellow}%s%f%%b'
+  zstyle ':prezto:module:git:info:action' format '%%B%F{yellow}%s%f%%b'
   zstyle ':prezto:module:git:info:added' format ' %%B%F{green}✚%f%%b'
   zstyle ':prezto:module:git:info:ahead' format ' %%B%F{yellow}⬆%f%%b'
   zstyle ':prezto:module:git:info:behind' format ' %%B%F{yellow}⬇%f%%b'
-  zstyle ':prezto:module:git:info:branch' format ':%F{green}%b%f'
-  zstyle ':prezto:module:git:info:commit' format ':%F{green}%.7c%f'
+  zstyle ':prezto:module:git:info:branch' format ' %F{green}%b%f'
+  zstyle ':prezto:module:git:info:commit' format ' %F{green}%.7c%f'
   zstyle ':prezto:module:git:info:deleted' format ' %%B%F{red}✖%f%%b'
   zstyle ':prezto:module:git:info:modified' format ' %%B%F{blue}✱%f%%b'
-  zstyle ':prezto:module:git:info:position' format ':%F{red}%p%f'
+  zstyle ':prezto:module:git:info:position' format ' %F{red}%p%f'
   zstyle ':prezto:module:git:info:renamed' format ' %%B%F{magenta}➜%f%%b'
   zstyle ':prezto:module:git:info:stashed' format ' %%B%F{cyan}✭%f%%b'
   zstyle ':prezto:module:git:info:unmerged' format ' %%B%F{yellow}═%f%%b'
   zstyle ':prezto:module:git:info:untracked' format ' %%B%F{white}◼%f%%b'
   zstyle ':prezto:module:git:info:keys' format \
-     'prompt' ' %F{white}git%f$(coalesce "%b" "%p" "%c")%s' \
-     'rprompt' '%A%B%S%a%d%m%r%U%u'
+    'status' '%b %p %c %s:%A%B%S%a%d%m%r%U%u'
+     # 'prompt' ' %F{white}git%f$(coalesce "%b" "%p" "%c")%s' \
+     # 'rprompt' '%A%B%S%a%d%m%r%U%u'
 
   # Set python-info parameters.
   zstyle ':prezto:module:python:info:virtualenv' format '%f%F{3}(%v)%F{7} '
@@ -149,7 +150,7 @@ function prompt_ismailp_setup {
 
   # Define prompts.
   PROMPT='%b%f%F{72}%n%F{242}@%F{179}%m %F{209}%~%f%b %#${editor_info[keymap]} '
-  RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f)${VIM:+" %B%F{green}V%f%b"}${git_info:+${(e)git_info[prompt]}}${git_info[rprompt]}'
+  RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f)${VIM:+" %B%F{green}V%f%b"}${_prompt_ismailp_git}'
   SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
 }
 

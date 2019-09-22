@@ -65,10 +65,6 @@ if zstyle -T ':prezto:module:utility' safe-ops; then
   alias mvi="${aliases[mv]:-mv} -i"
   alias cpi="${aliases[cp]:-cp} -i"
   alias lni="${aliases[ln]:-ln} -i"
-  alias rm='rmi'
-  alias mv='mvi'
-  alias cp='cpi'
-  alias ln='lni'
 fi
 
 alias tmux='tmux -2u'

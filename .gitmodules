@@ -19,3 +19,7 @@
 [submodule "modules/prompt/external/async"]
 	path = modules/prompt/external/async
 	url = https://github.com/mafredri/zsh-async.git
+[submodule "modules/prompt/external/powerlevel10k"]
+	path = modules/prompt/external/powerlevel10k
+	url = https://github.com/romkatv/powerlevel10k.git
+	shallow = true

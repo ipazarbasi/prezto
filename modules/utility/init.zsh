@@ -61,10 +61,10 @@ alias type='type -a'
 
 # Safe ops. Ask the user before doing anything destructive.
 if zstyle -T ':prezto:module:utility' safe-ops; then
-  alias rmi="${aliases[rm]:-rm} -i"
-  alias mvi="${aliases[mv]:-mv} -i"
-  alias cpi="${aliases[cp]:-cp} -i"
-  alias lni="${aliases[ln]:-ln} -i"
+  alias rm="${aliases[rm]:-rm} -i"
+  alias mv="${aliases[mv]:-mv} -i"
+  alias cp="${aliases[cp]:-cp} -i"
+  alias ln="${aliases[ln]:-ln} -i"
 fi
 
 alias tmux='tmux -2u'

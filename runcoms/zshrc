@@ -6,6 +6,13 @@
 #
 
 # Source Prezto.
+
+[[ -d "${HOME}/.yadr/zsh-completions" ]] && \
+  fpath=(
+      $fpath
+      ${HOME}/.yadr/zsh-completions
+  )
+
 if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
   source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
 fi
@@ -45,8 +52,4 @@ targ() {
 
 alias untar="tar -xf"
 alias buntar=untarbzip
-[[ -d "${HOME}/.yadr/zsh-completions" ]] && \
-  fpath=(
-      $fpath
-      ${HOME}/.yadr/zsh-completions
-  )
+

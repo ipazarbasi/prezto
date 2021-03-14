@@ -45,3 +45,8 @@ targ() {
 
 alias untar="tar -xf"
 alias buntar=untarbzip
+[[ -d "${HOME}/.yadr/zsh-completions" ]] && \
+  fpath=(
+      $fpath
+      ${HOME}/.yadr/zsh-completions
+  )

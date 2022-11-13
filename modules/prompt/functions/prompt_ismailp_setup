@@ -9,17 +9,6 @@
 # Load dependencies.
 pmodload 'helper'
 
-function prompt_ismailp_pwd {
-  local pwd="${PWD/#$HOME/~}"
-
-  if [[ "$pwd" == (#m)[/~] ]]; then
-    _prompt_ismailp_pwd="$MATCH"
-    unset MATCH
-  else
-    _prompt_ismailp_pwd="%n@%m %~ %# "
-  fi
-}
-
 function prompt_ismailp_async_callback {
   case $1 in
     prompt_ismailp_async_git)
@@ -81,7 +70,7 @@ function prompt_ismailp_precmd {
   unsetopt XTRACE KSH_ARRAYS
 
   # Format PWD.
-  # prompt_ismailp_pwd=$(prompt-pwd)
+  prompt_ismailp_pwd=$(prompt-pwd)
 
   # Handle updating git data. We also clear the git prompt data if we're in a
   # different git root now.
@@ -156,7 +145,7 @@ function prompt_ismailp_setup {
 
 
   # Define prompts.
-  PROMPT='%b%f%F{72}%n%F{242}@%F{179}%m %F{209}%~%f%b %#${editor_info[keymap]} '
+  PROMPT='%b%f%F{72}%n%F{242}@%F{179}%m %F{209}${prompt_ismailp_pwd}%f%b %#${editor_info[keymap]} '
   RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f )${VIM:+" %B%F{green}V%f%b"}${_prompt_ismailp_git}'
   SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
 }

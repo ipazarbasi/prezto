@@ -52,4 +52,20 @@ targ() {
 
 alias untar="tar -xf"
 alias buntar=untarbzip
+export NVM_DIR="$HOME/.nvm"
+
+# Sourcing nvm.sh eagerly costs ~1.3s; load it on first nvm invocation instead.
+nvm() {
+  unfunction nvm
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+  nvm "$@"
+}
+if command -v direnv &> /dev/null; then
+  eval "$(direnv hook zsh)"
+  # direnv hooks both precmd and chpwd; the precmd copy forks direnv (~10ms)
+  # on every prompt. chpwd alone covers cd, so run it once here for startup.
+  precmd_functions=(${precmd_functions:#_direnv_hook})
+  _direnv_hook
+fi
 

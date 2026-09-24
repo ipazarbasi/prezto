@@ -5,89 +5,152 @@
 #   Sorin Ionescu <sorin.ionescu@gmail.com>
 #   Ismail Pazarbasi <ismail.pazarbasi@gmail.com>
 #
-# Customized formyself; Ismail Pazarbasi
-# Load dependencies.
+# Customized for myself; Ismail Pazarbasi
+#
+# Cost model: everything except dirtiness is read from files or shell state, so
+# prompt redraws never fork -- ESC/i in vi mode is free. The one expensive bit
+# is a single `git status --porcelain=v2` per command, which also yields branch
+# and ahead/behind, so it replaces prezto's multi-fork git-info.
+#
+
 pmodload 'helper'
 
-function prompt_ismailp_async_callback {
-  case $1 in
-    prompt_ismailp_async_git)
-      # We can safely split on ':' because it isn't allowed in ref names.
-      IFS=':' read _git_target _git_post_target <<<"$3"
-
-      # The target actually contains 3 space separated possibilities, so we need to
-      # make sure we grab the first one.
-      _git_target=$(coalesce ${(@)${(z)_git_target}})
-
-      if [[ -z "$_git_target" ]]; then
-        # No git target detected, flush the git fragment and redisplay the prompt.
-        if [[ -n "$_prompt_ismailp_git" ]]; then
-          _prompt_ismailp_git=''
-          zle && zle reset-prompt
-        fi
-      else
-        # Git target detected, update the git fragment and redisplay the prompt.
-        _prompt_ismailp_git="${_git_target}${_git_post_target}"
-        zle && zle reset-prompt
-      fi
-      ;;
-    "[async]")
-      # Code is 1 for corrupted worker output and 2 for dead worker.
-      if [[ $2 -eq 2 ]]; then
-      # Our worker died unexpectedly.
-          typeset -g prompt_prezto_async_init=0
-      fi
-      ;;
-  esac
+# Fish-style $PWD: parents shortened to one char, leaf kept whole.
+function prompt_ismailp_pwd {
+  local p=${PWD/#$HOME/\~} out=""
+  local -a parts=( ${(s:/:)p} )
+  local n=$#parts i
+  (( n == 0 )) && { _prompt_ismailp_pwd=/; return }
+  [[ $p != \~* && $p == /* ]] && out="/"
+  for (( i = 1; i < n; i++ )); do
+    [[ -z $parts[i] ]] && continue
+    if [[ $parts[i] == \~ ]]; then out+="~/"; else out+="${parts[i][1,1]}/"; fi
+  done
+  _prompt_ismailp_pwd=$out${parts[n]}
 }
 
-function prompt_ismailp_async_git {
-  cd -q "$1"
-  if (( $+functions[git-info] )); then
-    git-info
-    print ${git_info[status]}
-  fi
+# Locate $GIT_DIR by walking up. No forks; handles linked worktrees.
+function prompt_ismailp_gitdir {
+  local d=$PWD
+  _prompt_ismailp_gd=
+  while [[ -n $d && ! -e $d/.git ]]; do d=${d%/*}; done
+  [[ -n $d ]] || return 1
+  local gd=$d/.git
+  [[ -f $gd ]] && gd=${"$(<$gd)"#gitdir: }
+  [[ -d $gd ]] || return 1
+  _prompt_ismailp_gd=$gd
 }
 
-function prompt_ismailp_async_tasks {
-  # Initialize async worker. This needs to be done here and not in
-  # prompt_ismailp_setup so the git formatting can be overridden by other prompts.
-  if (( !${prompt_prezto_async_init:-0} )); then
-    async_start_worker prompt_ismailp -n
-    async_register_callback prompt_ismailp prompt_ismailp_async_callback
-    typeset -g prompt_prezto_async_init=1
+function prompt_ismailp_git {
+  _prompt_ismailp_git=''
+  prompt_ismailp_gitdir || return
+
+  local gd=$_prompt_ismailp_gd action='' stash=''
+
+  # In-progress operations: file tests only.
+  if   [[ -e $gd/MERGE_HEAD ]];                            then action='merge'
+  elif [[ -d $gd/rebase-merge || -d $gd/rebase-apply ]];   then action='rebase'
+  elif [[ -e $gd/CHERRY_PICK_HEAD ]];                      then action='cherry-pick'
+  elif [[ -e $gd/REVERT_HEAD ]];                           then action='revert'
+  elif [[ -f $gd/BISECT_LOG ]];                            then action='bisect'
   fi
 
-  # Kill the old process of slow commands if it is still running.
-  async_flush_jobs prompt_ismailp
+  # The stash reflog lives in the common dir, shared by every worktree.
+  local common=$gd
+  [[ -r $gd/commondir ]] && common=$gd/${"$(<$gd/commondir)"}
+  if [[ -r $common/logs/refs/stash ]]; then
+    local -a entries=( ${(f)"$(<$common/logs/refs/stash)"} )
+    (( $#entries )) && stash=$#entries
+  fi
 
-  # Compute slow commands in the background.
-  async_job prompt_ismailp prompt_ismailp_async_git "$PWD"
+  # The single fork per command. porcelain=v2 --branch also carries the branch
+  # name and ahead/behind, so one call covers everything git must answer.
+  local -a lines
+  lines=( ${(f)"$(git status --porcelain=v2 --branch --ignore-submodules=all 2>/dev/null)"} )
+
+  local head='' ab='' line xy
+  local -i staged=0 modified=0 deleted=0 renamed=0 unmerged=0 untracked=0
+  for line in $lines; do
+    case $line in
+      '# branch.head '*) head=${line#\# branch.head } ;;
+      '# branch.ab '*)   ab=${line#\# branch.ab } ;;
+      '1 '*|'2 '*)
+        xy=${${(s: :)line}[2]}
+        [[ ${xy[1]} == [MADRC] ]] && staged=1
+        case ${xy[2]} in
+          M) modified=1 ;;
+          D) deleted=1 ;;
+          R|C) renamed=1 ;;
+        esac
+        [[ $line == '2 '* ]] && renamed=1
+        ;;
+      'u '*) unmerged=1 ;;
+      '?'*)  untracked=1 ;;
+    esac
+  done
+
+  local out=''
+  if [[ -n $head ]]; then
+    if [[ $head == '(detached)' ]]; then
+      local oid
+      for line in $lines; do
+        [[ $line == '# branch.oid '* ]] && oid=${line#\# branch.oid }
+      done
+      out+=" %F{red}${oid[1,8]}%f"
+    else
+      out+=" %F{green}${head//\%/%%}%f"
+    fi
+  fi
+  [[ -n $action ]] && out+=" %B%F{yellow}${action}%f%b"
+  if [[ -n $ab ]]; then
+    local -a counts=( ${(s: :)ab} )
+    [[ ${counts[1]} != '+0' ]] && out+=" %B%F{yellow}⬆%f%b"
+    [[ ${counts[2]} != '-0' ]] && out+=" %B%F{yellow}⬇%f%b"
+  fi
+  (( staged ))    && out+=" %B%F{green}✚%f%b"
+  (( deleted ))   && out+=" %B%F{red}✖%f%b"
+  (( modified ))  && out+=" %B%F{blue}✱%f%b"
+  (( renamed ))   && out+=" %B%F{magenta}➜%f%b"
+  (( unmerged ))  && out+=" %B%F{yellow}═%f%b"
+  (( untracked )) && out+=" %B%F{white}◼%f%b"
+  [[ -n $stash ]] && out+=" %B%F{cyan}✭${stash}%f%b"
+
+  _prompt_ismailp_git=$out
+}
+
+function prompt_ismailp_preexec {
+  _prompt_ismailp_started=$EPOCHREALTIME
+}
+
+# Elapsed wall time of the last command, shown only past the threshold.
+function prompt_ismailp_duration {
+  _prompt_ismailp_duration=''
+  (( _prompt_ismailp_started )) || return
+  local -F elapsed=$(( EPOCHREALTIME - _prompt_ismailp_started ))
+  _prompt_ismailp_started=0
+  (( elapsed < _prompt_ismailp_min_duration )) && return
+  local out
+  if (( elapsed < 60 )); then
+    out=$(( elapsed ))
+    out="${out%.*}.${${out#*.}[1]}s"
+  else
+    local -i m=$(( elapsed / 60 )) s=$(( elapsed % 60 ))
+    out="${m}m${s}s"
+  fi
+  _prompt_ismailp_duration=" %F{yellow}took ${out}%f"
 }
 
 function prompt_ismailp_precmd {
   setopt LOCAL_OPTIONS
   unsetopt XTRACE KSH_ARRAYS
 
-  # Format PWD.
-  prompt_ismailp_pwd=$(prompt-pwd)
+  prompt_ismailp_duration
+  prompt_ismailp_pwd
+  prompt_ismailp_git
 
-  # Handle updating git data. We also clear the git prompt data if we're in a
-  # different git root now.
-  if (( $+functions[git-dir] )); then
-    local new_git_root="$(git-dir 2> /dev/null)"
-    if [[ $new_git_root != $_ismailp_cur_git_root ]]; then
-      _prompt_ismailp_git=''
-      _ismailp_cur_git_root=$new_git_root
-    fi
-  fi
-
-  # Run python info (this should be fast and not require any async)
   if (( $+functions[python-info] )); then
     python-info
   fi
-
-  prompt_ismailp_async_tasks
 }
 
 function prompt_ismailp_setup {
@@ -95,58 +158,44 @@ function prompt_ismailp_setup {
   unsetopt XTRACE KSH_ARRAYS
   prompt_opts=(cr percent sp subst)
 
-  # Load required functions.
+  zmodload zsh/datetime
   autoload -Uz add-zsh-hook
-  autoload -Uz async && async
-
-  # Add hook for calling git-info before each command.
   add-zsh-hook precmd prompt_ismailp_precmd
+  add-zsh-hook preexec prompt_ismailp_preexec
 
-  # Tell prezto we can manage this prompt
   zstyle ':prezto:module:prompt' managed 'yes'
 
   # Set editor-info parameters.
   zstyle ':prezto:module:editor:info:completing' format '%B%F{red}...%f%b'
   zstyle ':prezto:module:editor:info:keymap:primary' format ''
-  # zstyle ':prezto:module:editor:info:keymap:primary' format ''
   zstyle ':prezto:module:editor:info:keymap:primary:overwrite' format ' %F{red}♺%f'
   zstyle ':prezto:module:editor:info:keymap:alternate' format ' %K{cyan}%F{black}N%f%k'
   zstyle ':prezto:module:syntax-highlighting' styles \
     'builtin' 'bg=white' \
     'command' 'bg=white'
-  # Set git-info parameters.
-  # zstyle ':prezto:module:git:info' verbose 'yes'
-  zstyle ':prezto:module:git:info:action' format '%%B%F{yellow}%s%f%%b'
-  zstyle ':prezto:module:git:info:added' format ' %%B%F{green}✚%f%%b'
-  zstyle ':prezto:module:git:info:ahead' format ' %%B%F{yellow}⬆%f%%b'
-  zstyle ':prezto:module:git:info:behind' format ' %%B%F{yellow}⬇%f%%b'
-  zstyle ':prezto:module:git:info:branch' format ' %F{green}%b%f'
-  zstyle ':prezto:module:git:info:commit' format ' %F{green}%.7c%f'
-  zstyle ':prezto:module:git:info:deleted' format ' %%B%F{red}✖%f%%b'
-  zstyle ':prezto:module:git:info:modified' format ' %%B%F{blue}✱%f%%b'
-  zstyle ':prezto:module:git:info:position' format ' %F{red}%p%f'
-  zstyle ':prezto:module:git:info:renamed' format ' %%B%F{magenta}➜%f%%b'
-  zstyle ':prezto:module:git:info:stashed' format ' %%B%F{cyan}✭%f%%b'
-  zstyle ':prezto:module:git:info:unmerged' format ' %%B%F{yellow}═%f%%b'
-  zstyle ':prezto:module:git:info:untracked' format ' %%B%F{white}◼%f%%b'
-  zstyle ':prezto:module:git:info:keys' format \
-    'status' '%b %p %c %s:%A%B%S%a%d%m%r%U%u'
-     # 'prompt' ' %F{white}git%f$(coalesce "%b" "%p" "%c")%s' \
-     # 'rprompt' '%A%B%S%a%d%m%r%U%u'
 
   # Set python-info parameters.
   zstyle ':prezto:module:python:info:virtualenv' format '%f%F{3}(%v)%F{7} '
 
-  # Get the async worker set up.
-  _ismailp_cur_git_root=''
-
-  _prompt_ismailp_git=''
   _prompt_ismailp_pwd=''
+  _prompt_ismailp_git=''
+  _prompt_ismailp_gd=''
+  _prompt_ismailp_duration=''
+  _prompt_ismailp_started=0
+  typeset -gF _prompt_ismailp_min_duration=2.0
 
+  # Only worth the width when the box isn't this one.
+  if [[ -n $SSH_CONNECTION || -n $SSH_CLIENT || -n $SSH_TTY ]]; then
+    _prompt_ismailp_host='%F{72}%n%F{242}@%F{179}%m%f '
+  else
+    _prompt_ismailp_host=''
+  fi
 
-  # Define prompts.
-  PROMPT='%b%f%F{72}%n%F{242}@%F{179}%m %F{209}${prompt_ismailp_pwd}%f%b %#${editor_info[keymap]} '
-  RPROMPT='%(1j;%{%F{cyan}%}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f )${VIM:+" %B%F{green}V%f%b"}${_prompt_ismailp_git}'
+  # λ, but '#' when privileged -- that's the part of %# worth keeping.
+  local char='%(?.%F{green}.%F{red})%(!.#.λ)%f'
+
+  PROMPT='%b%f${_prompt_ismailp_host}%F{33}📁%f %F{209}${_prompt_ismailp_pwd}%f%b '$char'${editor_info[keymap]} '
+  RPROMPT='%(1j;%F{cyan}%j⚙%f ;)${editor_info[overwrite]}%(?:: %F{red}⏎%?%f)${VIM:+" %B%F{green}V%f%b"}${_prompt_ismailp_git}${_prompt_ismailp_duration}'
   SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
 }
 
@@ -160,4 +209,3 @@ function prompt_ismailp_preview {
 }
 
 prompt_ismailp_setup "$@"
-
